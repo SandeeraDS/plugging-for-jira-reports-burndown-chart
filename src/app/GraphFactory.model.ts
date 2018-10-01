@@ -79,6 +79,8 @@ export class ApiServices {
         return myObeserble;
     }
 
+
+
     /**
      * @description get the sprint data - name and id
      * @param {string} boardID
@@ -120,6 +122,43 @@ export class ApiServices {
     }
 
 
+    getIdealLineStatus(sprintId: String) {
+
+        var resolutionDate:string=null;
+        const myObeserble = Observable.create((observer: Observer<string>) => {
+
+            if (AP === undefined)
+                observer.error('error');
+            else {
+                AP.request('/rest/agile/1.0/board/' + localStorage.getItem("boardID") + '/sprint/' + sprintId + '/issue?fields=timetracking,issuetype,created,summary,resolutiondate&maxResults=1000', {
+                    contentType: 'application/json',
+                    success: function (responseText) {
+                        var issuesData = JSON.parse(responseText);
+                        var i;
+                        for (i in issuesData.issues) {
+                            if ( issuesData.issues[i].fields.issuetype.subtask === true && issuesData.issues[i].fields.summary === 'Sprint Planing') {
+                                // console.log("resolution name"+issuesData.issues[i].fields.summary);
+                                // console.log("resolution time"+issuesData.issues[i].fields.resolutiondate);
+                                // console.log("resolution time"+issuesData.issues[i].fields.created);
+                                resolutionDate=issuesData.issues[i].fields.resolutiondate;
+                                localStorage.setItem("resolutionDate", resolutionDate);
+
+                                break;
+                            }
+                        }
+                        observer.next(resolutionDate);
+                    },
+                    error: function (xhr, statusText, errorThrown) {
+                        console.log(arguments);
+                    }
+                });
+            }
+        });
+        return myObeserble;
+
+    }
+
+
     /**
      * @description create graph objet which contains graph data
      * @param {string} sprintId
@@ -148,7 +187,7 @@ export class ApiServices {
                         console.log(sprintEndDate);
                         console.log(sprintStartDate);
 
-                        AP.request('/rest/agile/1.0/board/' + localStorage.getItem("boardID") + '/sprint/' + sprintId + '/issue?fields=timetracking,created,summary&maxResults=100', {
+                        AP.request('/rest/agile/1.0/board/' + localStorage.getItem("boardID") + '/sprint/' + sprintId + '/issue?fields=timetracking,created,issuetype,summary&maxResults=100', {
                             contentType: 'application/json',
                             success: function (responseText) {
                                 //console.log(responseText);
@@ -158,7 +197,8 @@ export class ApiServices {
 
                                 for (i in data.issues) {
                                     if (!(data.issues[i].fields.timetracking.originalEstimateSeconds === undefined) &&
-                                        (sprintStartDate >= new Date(data.issues[i].fields.created))) {
+                                        (new Date(localStorage.getItem("resolutionDate")) >= new Date(data.issues[i].fields.created) && 
+                                        data.issues[i].fields.issuetype.subtask === true)) {
                                         sum = Number(data.issues[i].fields.timetracking.originalEstimateSeconds) + sum
                                     }
                                 }
@@ -167,14 +207,14 @@ export class ApiServices {
                                 var dayDifference = Math.ceil(timeDiff / (1000 * 3600 * 24));
 
                                 var dates: Date[] = new Array(dayDifference);
-                                for (var j = 0; j <= dayDifference ; j++) {
+                                for (var j = 0; j <= dayDifference; j++) {
                                     var day = new Date(sprintStartDate)
                                     day.setDate(sprintStartDate.getDate() + j)
                                     if (j <= dayDifference) {
                                         dates[j] = day
                                     }
                                 }
-                                sum=sum/3600;
+                                sum = sum / 3600;
                                 graphObj = new Graph(dates, sum);
                                 console.log(graphObj);
                                 observer.next(graphObj);

@@ -61,7 +61,23 @@ export class GraphComponent implements OnInit {
    */
   getSprintData(boardID: string) {
     this.apiServices.getSprintDetails(boardID).subscribe(
-      (data: object) => { console.log(data); this.getGraphData(data['sId']) },
+      (data: object) => { console.log(data); this.getPlannedTime(data['sId']) },
+      (error: string) => { console.log(error) },
+      () => { console.log('completed') }
+    );
+  }
+
+  getPlannedTime(sprintId: string) {
+    this.apiServices.getIdealLineStatus(sprintId).subscribe(
+      (data: string) => {
+        
+        if(data == null){
+          alert("try ageain")
+        }
+        else{
+          this.getGraphData(sprintId)
+        }
+      },
       (error: string) => { console.log(error) },
       () => { console.log('completed') }
     );
