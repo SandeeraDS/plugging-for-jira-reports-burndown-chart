@@ -1,6 +1,7 @@
 import { Graph } from "./Models/graph.model";
 import { Observable, Observer } from "rxjs";
 
+
 declare var AP: any;
 
 /**
@@ -124,7 +125,7 @@ export class ApiServices {
 
     getIdealLineStatus(sprintId: String) {
 
-        var resolutionDate:string=null;
+        var resolutionDate: string = null;
         const myObeserble = Observable.create((observer: Observer<string>) => {
 
             if (AP === undefined)
@@ -136,11 +137,11 @@ export class ApiServices {
                         var issuesData = JSON.parse(responseText);
                         var i;
                         for (i in issuesData.issues) {
-                            if ( issuesData.issues[i].fields.issuetype.subtask === true && issuesData.issues[i].fields.summary === 'Sprint Planing') {
+                            if (issuesData.issues[i].fields.issuetype.subtask === true && issuesData.issues[i].fields.summary === 'Sprint Planing') {
                                 // console.log("resolution name"+issuesData.issues[i].fields.summary);
                                 // console.log("resolution time"+issuesData.issues[i].fields.resolutiondate);
                                 // console.log("resolution time"+issuesData.issues[i].fields.created);
-                                resolutionDate=issuesData.issues[i].fields.resolutiondate;
+                                resolutionDate = issuesData.issues[i].fields.resolutiondate;
                                 localStorage.setItem("resolutionDate", resolutionDate);
 
                                 break;
@@ -187,7 +188,7 @@ export class ApiServices {
                         console.log(sprintEndDate);
                         console.log(sprintStartDate);
 
-                        AP.request('/rest/agile/1.0/board/' + localStorage.getItem("boardID") + '/sprint/' + sprintId + '/issue?fields=timetracking,created,issuetype,summary&maxResults=100', {
+                        AP.request('/rest/agile/1.0/board/' + localStorage.getItem("boardID") + '/sprint/' + sprintId + '/issue?fields=timetracking,created,issuetype,resolutiondate,sprint,worklog,summary&maxResults=100', {
                             contentType: 'application/json',
                             success: function (responseText) {
                                 //console.log(responseText);
@@ -196,10 +197,34 @@ export class ApiServices {
                                 var i;
 
                                 for (i in data.issues) {
-                                    if (!(data.issues[i].fields.timetracking.originalEstimateSeconds === undefined) &&
-                                        (new Date(localStorage.getItem("resolutionDate")) >= new Date(data.issues[i].fields.created) && 
-                                        data.issues[i].fields.issuetype.subtask === true)) {
-                                        sum = Number(data.issues[i].fields.timetracking.originalEstimateSeconds) + sum
+
+                                    var originalEstimateSeconds = data.issues[i].fields.timetracking.originalEstimateSeconds;
+                                    var createdTime = data.issues[i].fields.created;
+                                    var issueType = data.issues[i].fields.issuetype.subtask;
+                                    var issueCompleted = data.issues[i].fields.resolutiondate
+
+
+
+                                    if (!(originalEstimateSeconds === undefined) &&
+                                        (new Date(localStorage.getItem("resolutionDate")) >= new Date(createdTime)) &&
+                                        (issueType === true) && (new Date(issueCompleted) > sprintStartDate || issueCompleted == null)) {
+                                        console.log("--------------");
+                                        var totalTime = Number(originalEstimateSeconds)
+                                        if (data.issues[i].fields.worklog.total == 0) {
+                                            console.log("name ===>" + data.issues[i].fields.summary);
+                                        }
+                                        else {
+                                            var k;
+                                            for (k in data.issues[i].fields.worklog.worklogs) {
+
+                                                if (new Date(data.issues[i].fields.worklog.worklogs[k].updated) < sprintStartDate) {
+                                                    console.log("time spent" + data.issues[i].fields.worklog.worklogs[k].timeSpentSeconds);
+                                                    totalTime = totalTime - Number(data.issues[i].fields.worklog.worklogs[k].timeSpentSeconds);
+                                                }
+                                            }
+
+                                        }
+                                        sum = totalTime + sum
                                     }
                                 }
 
